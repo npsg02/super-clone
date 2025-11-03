@@ -119,11 +119,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("🔍 Discovering repositories for user: {}", username);
             let repos = match provider_enum {
                 Provider::GitHub => {
-                    let client = GitHubClient::new(config.github_token)?;
+                    let client = GitHubClient::new(config.github_token.clone())?;
                     client.discover_user_repos(&username).await?
                 }
                 Provider::GitLab => {
-                    let client = GitLabClient::new(config.gitlab_token, None)?;
+                    let client = GitLabClient::new(config.gitlab_token.clone(), None)?;
                     client.discover_user_repos(&username).await?
                 }
             };
@@ -142,7 +142,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // Clone repositories
-            let git_ops = GitOperations::new(PathBuf::from(&config.clone_base_path));
+            let git_ops = GitOperations::with_tokens(
+                PathBuf::from(&config.clone_base_path),
+                config.github_token.clone(),
+                config.gitlab_token.clone(),
+            );
             for repo in &repos {
                 println!("⬇️  Cloning: {}", repo.full_name);
                 match git_ops.clone_repository(repo, config.use_ssh).await {
@@ -173,11 +177,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
             let repos = match provider_enum {
                 Provider::GitHub => {
-                    let client = GitHubClient::new(config.github_token)?;
+                    let client = GitHubClient::new(config.github_token.clone())?;
                     client.discover_org_repos(&org).await?
                 }
                 Provider::GitLab => {
-                    let client = GitLabClient::new(config.gitlab_token, None)?;
+                    let client = GitLabClient::new(config.gitlab_token.clone(), None)?;
                     client.discover_org_repos(&org).await?
                 }
             };
@@ -196,7 +200,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // Clone repositories
-            let git_ops = GitOperations::new(PathBuf::from(&config.clone_base_path));
+            let git_ops = GitOperations::with_tokens(
+                PathBuf::from(&config.clone_base_path),
+                config.github_token.clone(),
+                config.gitlab_token.clone(),
+            );
             for repo in &repos {
                 println!("⬇️  Cloning: {}", repo.full_name);
                 match git_ops.clone_repository(repo, config.use_ssh).await {
@@ -259,7 +267,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             println!("🔄 Pulling updates for {} repositories", repos.len());
 
-            let git_ops = GitOperations::new(PathBuf::from(&config.clone_base_path));
+            let git_ops = GitOperations::with_tokens(
+                PathBuf::from(&config.clone_base_path),
+                config.github_token.clone(),
+                config.gitlab_token.clone(),
+            );
             for repo in repos {
                 if let Some(path) = &repo.local_path {
                     print!("⬇️  Pulling: {} ... ", repo.full_name);
@@ -283,7 +295,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let repository = db.get_repository_by_full_name(&repo).await?;
 
             if let Some(repo) = repository {
-                let git_ops = GitOperations::new(PathBuf::from(&config.clone_base_path));
+                let git_ops = GitOperations::with_tokens(
+                    PathBuf::from(&config.clone_base_path),
+                    config.github_token.clone(),
+                    config.gitlab_token.clone(),
+                );
                 println!("⬇️  Cloning: {}", repo.full_name);
                 match git_ops.clone_repository(&repo, config.use_ssh).await {
                     Ok(path) => {

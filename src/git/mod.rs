@@ -1,4 +1,4 @@
-use crate::models::Repository;
+use crate::models::{Provider, Repository};
 use crate::Result;
 use anyhow::Context;
 use std::path::PathBuf;
@@ -6,11 +6,57 @@ use std::process::Command;
 
 pub struct GitOperations {
     base_path: PathBuf,
+    github_token: Option<String>,
+    gitlab_token: Option<String>,
 }
 
 impl GitOperations {
     pub fn new(base_path: PathBuf) -> Self {
-        Self { base_path }
+        Self {
+            base_path,
+            github_token: None,
+            gitlab_token: None,
+        }
+    }
+
+    pub fn with_tokens(
+        base_path: PathBuf,
+        github_token: Option<String>,
+        gitlab_token: Option<String>,
+    ) -> Self {
+        Self {
+            base_path,
+            github_token,
+            gitlab_token,
+        }
+    }
+
+    /// Inject authentication token into HTTPS URL for private repositories
+    fn inject_token_into_url(&self, url: &str, provider: Provider, is_private: bool) -> String {
+        // Only inject token for private repos using HTTPS
+        if !is_private || !url.starts_with("https://") {
+            return url.to_string();
+        }
+
+        let token = match provider {
+            Provider::GitHub => self.github_token.as_ref(),
+            Provider::GitLab => self.gitlab_token.as_ref(),
+        };
+
+        if let Some(token) = token {
+            match provider {
+                Provider::GitHub => {
+                    // GitHub format: https://<token>@github.com/owner/repo.git
+                    url.replace("https://", &format!("https://{}@", token))
+                }
+                Provider::GitLab => {
+                    // GitLab format: https://oauth2:<token>@gitlab.com/owner/repo.git
+                    url.replace("https://", &format!("https://oauth2:{}@", token))
+                }
+            }
+        } else {
+            url.to_string()
+        }
     }
 
     /// Clone a repository
@@ -20,9 +66,11 @@ impl GitOperations {
 
         // Determine clone URL
         let clone_url = if use_ssh {
-            &repo.clone_url_ssh
+            repo.clone_url_ssh.clone()
         } else {
-            &repo.clone_url_https
+            // For HTTPS, inject token if this is a private repository
+            let provider: Provider = repo.provider.parse()?;
+            self.inject_token_into_url(&repo.clone_url_https, provider, repo.is_private)
         };
 
         // Create target directory path
@@ -50,7 +98,7 @@ impl GitOperations {
         // Clone the repository
         let output = Command::new("git")
             .arg("clone")
-            .arg(clone_url)
+            .arg(&clone_url)
             .arg(&repo_path)
             .output()
             .context("Failed to execute git clone")?;
@@ -106,5 +154,86 @@ impl GitOperations {
     /// Get the default clone path for a repository
     pub fn get_repo_path(&self, repo: &Repository) -> PathBuf {
         self.base_path.join(&repo.owner).join(&repo.name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::Provider;
+
+    #[test]
+    fn test_inject_token_github_private_repo() {
+        let git_ops = GitOperations::with_tokens(
+            PathBuf::from("/tmp"),
+            Some("ghp_test_token_123".to_string()),
+            None,
+        );
+
+        let url = "https://github.com/owner/private-repo.git";
+        let result = git_ops.inject_token_into_url(url, Provider::GitHub, true);
+
+        assert_eq!(
+            result,
+            "https://ghp_test_token_123@github.com/owner/private-repo.git"
+        );
+    }
+
+    #[test]
+    fn test_inject_token_github_public_repo() {
+        let git_ops = GitOperations::with_tokens(
+            PathBuf::from("/tmp"),
+            Some("ghp_test_token_123".to_string()),
+            None,
+        );
+
+        let url = "https://github.com/owner/public-repo.git";
+        let result = git_ops.inject_token_into_url(url, Provider::GitHub, false);
+
+        // Should not modify URL for public repos
+        assert_eq!(result, "https://github.com/owner/public-repo.git");
+    }
+
+    #[test]
+    fn test_inject_token_gitlab_private_repo() {
+        let git_ops = GitOperations::with_tokens(
+            PathBuf::from("/tmp"),
+            None,
+            Some("glpat_test_token_456".to_string()),
+        );
+
+        let url = "https://gitlab.com/group/private-project.git";
+        let result = git_ops.inject_token_into_url(url, Provider::GitLab, true);
+
+        assert_eq!(
+            result,
+            "https://oauth2:glpat_test_token_456@gitlab.com/group/private-project.git"
+        );
+    }
+
+    #[test]
+    fn test_inject_token_ssh_url_not_modified() {
+        let git_ops = GitOperations::with_tokens(
+            PathBuf::from("/tmp"),
+            Some("ghp_test_token_123".to_string()),
+            None,
+        );
+
+        let url = "git@github.com:owner/repo.git";
+        let result = git_ops.inject_token_into_url(url, Provider::GitHub, true);
+
+        // SSH URLs should not be modified
+        assert_eq!(result, "git@github.com:owner/repo.git");
+    }
+
+    #[test]
+    fn test_inject_token_no_token_provided() {
+        let git_ops = GitOperations::with_tokens(PathBuf::from("/tmp"), None, None);
+
+        let url = "https://github.com/owner/private-repo.git";
+        let result = git_ops.inject_token_into_url(url, Provider::GitHub, true);
+
+        // Should not modify URL when no token is provided
+        assert_eq!(result, "https://github.com/owner/private-repo.git");
     }
 }
