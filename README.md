@@ -1,12 +1,18 @@
-# Template Rust
+# Super Clone
 
-A Rust project template featuring a todo application with SQLite database and terminal user interface (TUI).
+A powerful CLI and TUI tool to clone and manage repositories from GitHub and GitLab.
 
 ## Features
 
-- 📝 Todo management with SQLite persistence
+- 🚀 Clone all repositories from GitHub users and organizations
+- 🦊 Clone all repositories from GitLab users and groups
+- 🔍 Auto-discover repositories from users, organizations, and groups
+- 🔄 Pull updates for all cloned repositories with a single command
+- 🔑 Support for both SSH and HTTPS cloning
+- 🔒 Works with private repositories using access tokens
 - 🖥️ Interactive Terminal User Interface (TUI)
 - 🔧 Command Line Interface (CLI)
+- 💾 SQLite database to track repository status
 - 🧪 Comprehensive test suite
 - 🚀 CI/CD with GitHub Actions
 - 📦 Cross-platform releases
@@ -22,23 +28,23 @@ A Rust project template featuring a todo application with SQLite database and te
 ### From Source
 
 ```bash
-git clone https://github.com/pnstack/template-rust.git
-cd template-rust
+git clone https://github.com/npsg02/super-clone.git
+cd super-clone
 cargo build --release
 ```
 
 ### From Releases
 
-Download the latest binary from the [Releases](https://github.com/pnstack/template-rust/releases) page.
+Download the latest binary from the [Releases](https://github.com/npsg02/super-clone/releases) page.
 
 ### With Docker
 
 ```bash
 # Build the image
-docker build -t template-rust:latest .
+docker build -t super-clone:latest .
 
 # Run with interactive TUI
-docker run --rm -it -v $(pwd)/data:/app/data template-rust:latest tui
+docker run --rm -it -v $(pwd)/data:/app/data super-clone:latest tui
 
 # Or use Docker Compose
 docker compose up
@@ -64,28 +70,67 @@ Click the "Code" button on GitHub and select "Create codespace on main" - everyt
 
 ```bash
 # Show help
-./template-rust --help
+./super-clone --help
 
-# Add a new todo
-./template-rust add "Buy groceries" --description "Milk, eggs, bread"
+# Clone all repositories from a GitHub user
+./super-clone clone-user --provider github username
 
-# List all todos
-./template-rust list
+# Clone all repositories from a GitHub organization
+./super-clone clone-org --provider github organization-name
 
-# List only completed todos
-./template-rust list --completed
+# Clone all repositories from a GitLab user
+./super-clone clone-user --provider gitlab username
 
-# List only pending todos
-./template-rust list --pending
+# Clone all repositories from a GitLab group
+./super-clone clone-org --provider gitlab group-name
 
-# Complete a todo (use the ID from list command)
-./template-rust complete <todo-id>
+# List all discovered repositories
+./super-clone list
 
-# Delete a todo
-./template-rust delete <todo-id>
+# List only cloned repositories
+./super-clone list --cloned
+
+# List only GitHub repositories
+./super-clone list --provider github
+
+# Pull updates for all cloned repositories
+./super-clone pull-all
+
+# Clone a specific repository (must be discovered first)
+./super-clone clone owner/repo
 
 # Start interactive TUI (default mode)
-./template-rust tui
+./super-clone tui
+```
+
+### Using Access Tokens
+
+For private repositories, set environment variables or use command-line flags:
+
+```bash
+# Using environment variables
+export GITHUB_TOKEN=your_github_token
+export GITLAB_TOKEN=your_gitlab_token
+./super-clone clone-user --provider github username
+
+# Using command-line flags
+./super-clone --github-token your_token clone-user --provider github username
+```
+
+### SSH vs HTTPS
+
+By default, super-clone uses HTTPS for cloning. To use SSH:
+
+```bash
+./super-clone --ssh clone-user --provider github username
+```
+
+### Custom Clone Path
+
+Specify a custom base path for cloning repositories:
+
+```bash
+./super-clone --clone-path /path/to/repos clone-user --provider github username
 ```
 
 ### Terminal User Interface (TUI)
@@ -93,28 +138,31 @@ Click the "Code" button on GitHub and select "Create codespace on main" - everyt
 Start the interactive mode:
 
 ```bash
-./template-rust tui
+./super-clone tui
 ```
 
 #### TUI Commands:
 - `h` - Show help
-- `n` - Add new todo
-- `d` - Delete selected todo
-- `c` - Toggle todo completion status
-- `a` - Show all todos
-- `p` - Show pending todos only
-- `f` - Show completed todos only
-- `↑↓` - Navigate todos
 - `q` - Quit application
+- `d` - Delete selected repository
+- `r` - Refresh repository list
+- `a` - Show all repositories
+- `g` - Show GitHub repositories only
+- `l` - Show GitLab repositories only
+- `c` - Show cloned repositories only
+- `n` - Show not cloned repositories only
+- `↑↓` - Navigate repositories
 
 ## Project Structure
 
 ```
-template-rust/
+super-clone/
 ├── .github/workflows/    # CI/CD workflows
 ├── src/
 │   ├── database/         # Database layer
-│   ├── models/           # Data models
+│   ├── models/           # Data models (Repository, Provider, Config)
+│   ├── providers/        # GitHub and GitLab API clients
+│   ├── git/              # Git operations (clone, pull)
 │   ├── tui/              # Terminal UI
 │   ├── lib.rs            # Library root
 │   └── main.rs           # CLI application
@@ -131,7 +179,7 @@ template-rust/
 
 Choose your preferred development method:
 
-- **Local**: Rust 1.70 or later, SQLite3
+- **Local**: Rust 1.70 or later, SQLite3, Git
 - **Docker**: Docker 20.10+ and Docker Compose
 - **Nix**: Nix package manager with flakes enabled
 - **Codespaces**: Just a GitHub account!
@@ -178,17 +226,20 @@ The project provides multiple development environment options:
 
 ## Database
 
-The application uses SQLite for persistence. By default, it creates a `todo.db` file in the current directory. You can specify a different database path:
+The application uses SQLite for persistence. By default, it creates a database at `~/.super-clone/repositories.db`. You can specify a different database path:
 
 ```bash
-./template-rust --database /path/to/your/todos.db list
+./super-clone --database /path/to/your/repos.db list
 ```
 
-For testing with in-memory database:
+## Configuration
 
-```bash
-./template-rust --database ":memory:" add "Test todo"
-```
+Super-clone stores configuration in the database and uses environment variables for sensitive data:
+
+- `GITHUB_TOKEN`: GitHub personal access token for private repositories
+- `GITLAB_TOKEN`: GitLab personal access token for private repositories
+
+Default clone path: `~/repositories`
 
 ## CI/CD
 
@@ -200,6 +251,15 @@ The project includes comprehensive GitHub Actions workflows:
 - **Docker** (`docker.yml`): Docker image build testing and docker-compose validation
 
 All workflows run automatically on push and pull requests to ensure code quality and security.
+
+## API Rate Limits
+
+Be aware of API rate limits:
+
+- **GitHub**: 60 requests/hour (unauthenticated), 5000 requests/hour (authenticated)
+- **GitLab**: 10 requests/second (authenticated)
+
+Using access tokens is recommended for better rate limits and access to private repositories.
 
 ## Contributing
 

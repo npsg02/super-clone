@@ -1,6 +1,6 @@
 # Setup Guide
 
-This guide will help you set up the development environment for template-rust using various methods.
+This guide will help you set up the development environment for super-clone using various methods.
 
 ## Table of Contents
 
@@ -20,7 +20,7 @@ This guide will help you set up the development environment for template-rust us
 
 Choose one of the following setup methods based on your preference:
 
-- **Local Development**: Rust 1.70+, SQLite3
+- **Local Development**: Rust 1.70+, SQLite3, Git
 - **Docker**: Docker 20.10+ and Docker Compose (optional)
 - **Nix**: Nix package manager with flakes enabled
 - **Codespaces**: GitHub account (no local setup required)
