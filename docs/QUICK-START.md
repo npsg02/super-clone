@@ -7,7 +7,7 @@ Choose your preferred development method and get started in minutes!
 ### GitHub Codespaces (Zero Setup!)
 1. Click "Code" → "Codespaces" → "Create codespace on main"
 2. Wait ~2 minutes for setup
-3. Start coding!
+3. Start using super-clone!
 
 **Best for:** Trying the project, contributing without local setup
 
@@ -15,8 +15,8 @@ Choose your preferred development method and get started in minutes!
 
 ### Docker Compose (Simple)
 ```bash
-git clone https://github.com/pnstack/template-rust.git
-cd template-rust
+git clone https://github.com/npsg02/super-clone.git
+cd super-clone
 docker compose up
 ```
 
@@ -26,8 +26,8 @@ docker compose up
 
 ### Nix (Reproducible)
 ```bash
-git clone https://github.com/pnstack/template-rust.git
-cd template-rust
+git clone https://github.com/npsg02/super-clone.git
+cd super-clone
 nix develop
 cargo run
 ```
@@ -42,8 +42,8 @@ cargo run
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Clone and build
-git clone https://github.com/pnstack/template-rust.git
-cd template-rust
+git clone https://github.com/npsg02/super-clone.git
+cd super-clone
 cargo build --release
 ```
 
@@ -74,9 +74,9 @@ cargo fmt                        # Format
 
 ### Using Docker
 ```bash
-docker build -t template-rust .                    # Build image
-docker run --rm template-rust --help               # Show help
-docker run --rm -it template-rust tui              # Interactive TUI
+docker build -t super-clone .                    # Build image
+docker run --rm super-clone --help               # Show help
+docker run --rm -it super-clone tui              # Interactive TUI
 ```
 
 ### Using Docker Compose
@@ -100,17 +100,30 @@ docker compose down                # Stop services
    cargo run -- tui
    ```
 
-3. **Add a todo:**
+3. **Clone repositories from a GitHub user:**
    ```bash
-   cargo run -- add "My first task"
+   # Set your GitHub token for private repos (optional)
+   export GITHUB_TOKEN=your_token_here
+   
+   cargo run -- clone-user --provider github username
    ```
 
-4. **List todos:**
+4. **Clone from a GitHub organization:**
+   ```bash
+   cargo run -- clone-org --provider github organization
+   ```
+
+5. **List all discovered repositories:**
    ```bash
    cargo run -- list
    ```
 
-5. **Run tests:**
+6. **Pull updates for all cloned repos:**
+   ```bash
+   cargo run -- pull-all
+   ```
+
+7. **Run tests:**
    ```bash
    cargo test
    ```
@@ -126,6 +139,17 @@ docker compose down                # Stop services
 ---
 
 ## ❓ Troubleshooting
+
+### "Git not found"
+```bash
+# Ubuntu/Debian
+sudo apt-get install git
+
+# macOS
+brew install git
+
+# Nix/Codespaces - Already included!
+```
 
 ### "SQLite not found"
 ```bash
@@ -156,9 +180,14 @@ Subsequent builds are much faster (seconds instead of minutes).
 ### Docker permission issues
 ```bash
 # Create data directory with proper permissions
-mkdir -p data
-chmod 777 data
+mkdir -p data repositories
+chmod 777 data repositories
 ```
+
+### API Rate Limits
+- **GitHub**: 60 requests/hour (unauthenticated), 5000 requests/hour (authenticated)
+- **GitLab**: 10 requests/second (authenticated)
+- **Solution**: Use access tokens for better rate limits
 
 ---
 
@@ -187,6 +216,8 @@ chmod 777 data
 3. **Format before commit**: `cargo fmt` or `make fmt`
 4. **Test frequently**: `cargo test` or `make test`
 5. **Use `--release` for production**: Much faster
+6. **Set access tokens**: For private repositories and better rate limits
+7. **Use SSH**: For seamless authentication (configure SSH keys first)
 
 ---
 
@@ -197,7 +228,7 @@ Ready to contribute?
 1. Fork the repository
 2. Create a branch: `git checkout -b feature/my-feature`
 3. Make changes
-4. Test: `make all`
+4. Test: `make all` or `cargo test && cargo clippy && cargo fmt`
 5. Commit: `git commit -m "Add feature"`
 6. Push: `git push origin feature/my-feature`
 7. Open a Pull Request
@@ -207,9 +238,9 @@ Ready to contribute?
 ## 📞 Getting Help
 
 - 📖 Read the [full docs](../README.md)
-- 🐛 [Open an issue](https://github.com/pnstack/template-rust/issues)
-- 💬 Check [existing issues](https://github.com/pnstack/template-rust/issues?q=is%3Aissue)
+- 🐛 [Open an issue](https://github.com/npsg02/super-clone/issues)
+- 💬 Check [existing issues](https://github.com/npsg02/super-clone/issues?q=is%3Aissue)
 
 ---
 
-**Happy coding! 🦀**
+**Happy cloning! 🦀🚀**
