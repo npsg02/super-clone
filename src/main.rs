@@ -253,26 +253,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            // Get authenticated user
-            let username = match provider_enum {
-                Provider::GitHub => {
-                    let client = GitHubClient::new(config.github_token.clone())?;
-                    client.get_authenticated_user().await?
-                }
-                Provider::GitLab => {
-                    let client = GitLabClient::new(config.gitlab_token.clone(), None)?;
-                    client.get_authenticated_user().await?
-                }
-            };
-
-            println!("🔍 Discovering repositories for authenticated user: {}", username);
+            // Get authenticated user and discover repos
+            println!("🔍 Discovering repositories for authenticated user...");
             let repos = match provider_enum {
                 Provider::GitHub => {
                     let client = GitHubClient::new(config.github_token)?;
+                    let username = client.get_authenticated_user().await?;
+                    println!("   Authenticated as: {}", username);
                     client.discover_user_repos(&username).await?
                 }
                 Provider::GitLab => {
                     let client = GitLabClient::new(config.gitlab_token, None)?;
+                    let username = client.get_authenticated_user().await?;
+                    println!("   Authenticated as: {}", username);
                     client.discover_user_repos(&username).await?
                 }
             };
