@@ -1,14 +1,14 @@
-use crate::models::Todo;
+use crate::models::{CloneStatus, Repository};
 use crate::Result;
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 
-/// Database service for todo operations
+/// Database service for repository operations
 #[derive(Debug, Clone)]
-pub struct TodoDatabase {
+pub struct RepositoryDatabase {
     pool: SqlitePool,
 }
 
-impl TodoDatabase {
+impl RepositoryDatabase {
     /// Create a new database connection
     pub async fn new(database_url: &str) -> Result<Self> {
         // Handle special cases for SQLite URL format
@@ -38,11 +38,19 @@ impl TodoDatabase {
     async fn migrate(&self) -> Result<()> {
         sqlx::query(
             r#"
-            CREATE TABLE IF NOT EXISTS todos (
+            CREATE TABLE IF NOT EXISTS repositories (
                 id TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
+                name TEXT NOT NULL,
+                full_name TEXT NOT NULL,
+                owner TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                clone_url_https TEXT NOT NULL,
+                clone_url_ssh TEXT NOT NULL,
                 description TEXT,
-                completed BOOLEAN NOT NULL DEFAULT FALSE,
+                is_private BOOLEAN NOT NULL DEFAULT FALSE,
+                local_path TEXT,
+                status TEXT NOT NULL DEFAULT 'not_cloned',
+                last_pulled_at TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
@@ -53,71 +61,129 @@ impl TodoDatabase {
         Ok(())
     }
 
-    /// Get all todos
-    pub async fn get_all_todos(&self) -> Result<Vec<Todo>> {
-        let todos = sqlx::query_as::<_, Todo>("SELECT * FROM todos ORDER BY created_at DESC")
-            .fetch_all(&self.pool)
-            .await?;
-        Ok(todos)
+    /// Get all repositories
+    pub async fn get_all_repositories(&self) -> Result<Vec<Repository>> {
+        let repos =
+            sqlx::query_as::<_, Repository>("SELECT * FROM repositories ORDER BY full_name ASC")
+                .fetch_all(&self.pool)
+                .await?;
+        Ok(repos)
     }
 
-    /// Get a todo by ID
-    pub async fn get_todo(&self, id: &str) -> Result<Option<Todo>> {
-        let todo = sqlx::query_as::<_, Todo>("SELECT * FROM todos WHERE id = ?")
+    /// Get repositories by provider
+    pub async fn get_repositories_by_provider(&self, provider: &str) -> Result<Vec<Repository>> {
+        let repos = sqlx::query_as::<_, Repository>(
+            "SELECT * FROM repositories WHERE provider = ? ORDER BY full_name ASC",
+        )
+        .bind(provider)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(repos)
+    }
+
+    /// Get repositories by owner
+    pub async fn get_repositories_by_owner(&self, owner: &str) -> Result<Vec<Repository>> {
+        let repos = sqlx::query_as::<_, Repository>(
+            "SELECT * FROM repositories WHERE owner = ? ORDER BY full_name ASC",
+        )
+        .bind(owner)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(repos)
+    }
+
+    /// Get repositories by status
+    pub async fn get_repositories_by_status(&self, status: CloneStatus) -> Result<Vec<Repository>> {
+        let repos = sqlx::query_as::<_, Repository>(
+            "SELECT * FROM repositories WHERE status = ? ORDER BY full_name ASC",
+        )
+        .bind(status.to_string())
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(repos)
+    }
+
+    /// Get a repository by ID
+    pub async fn get_repository(&self, id: &str) -> Result<Option<Repository>> {
+        let repo = sqlx::query_as::<_, Repository>("SELECT * FROM repositories WHERE id = ?")
             .bind(id)
             .fetch_optional(&self.pool)
             .await?;
-        Ok(todo)
+        Ok(repo)
     }
 
-    /// Create a new todo
-    pub async fn create_todo(&self, todo: &Todo) -> Result<()> {
+    /// Get a repository by full name
+    pub async fn get_repository_by_full_name(&self, full_name: &str) -> Result<Option<Repository>> {
+        let repo =
+            sqlx::query_as::<_, Repository>("SELECT * FROM repositories WHERE full_name = ?")
+                .bind(full_name)
+                .fetch_optional(&self.pool)
+                .await?;
+        Ok(repo)
+    }
+
+    /// Create a new repository
+    pub async fn create_repository(&self, repo: &Repository) -> Result<()> {
         sqlx::query(
-            "INSERT INTO todos (id, title, description, completed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+            "INSERT INTO repositories (id, name, full_name, owner, provider, clone_url_https, clone_url_ssh, description, is_private, local_path, status, last_pulled_at, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
-        .bind(&todo.id)
-        .bind(&todo.title)
-        .bind(&todo.description)
-        .bind(todo.completed)
-        .bind(todo.created_at.to_rfc3339())
-        .bind(todo.updated_at.to_rfc3339())
+        .bind(&repo.id)
+        .bind(&repo.name)
+        .bind(&repo.full_name)
+        .bind(&repo.owner)
+        .bind(&repo.provider)
+        .bind(&repo.clone_url_https)
+        .bind(&repo.clone_url_ssh)
+        .bind(&repo.description)
+        .bind(repo.is_private)
+        .bind(&repo.local_path)
+        .bind(&repo.status)
+        .bind(repo.last_pulled_at.map(|dt| dt.to_rfc3339()))
+        .bind(repo.created_at.to_rfc3339())
+        .bind(repo.updated_at.to_rfc3339())
         .execute(&self.pool)
         .await?;
         Ok(())
     }
 
-    /// Update a todo
-    pub async fn update_todo(&self, todo: &Todo) -> Result<()> {
+    /// Update a repository
+    pub async fn update_repository(&self, repo: &Repository) -> Result<()> {
         sqlx::query(
-            "UPDATE todos SET title = ?, description = ?, completed = ?, updated_at = ? WHERE id = ?"
+            "UPDATE repositories SET name = ?, full_name = ?, owner = ?, provider = ?, clone_url_https = ?, clone_url_ssh = ?, description = ?, is_private = ?, local_path = ?, status = ?, last_pulled_at = ?, updated_at = ? WHERE id = ?"
         )
-        .bind(&todo.title)
-        .bind(&todo.description)
-        .bind(todo.completed)
-        .bind(todo.updated_at.to_rfc3339())
-        .bind(&todo.id)
+        .bind(&repo.name)
+        .bind(&repo.full_name)
+        .bind(&repo.owner)
+        .bind(&repo.provider)
+        .bind(&repo.clone_url_https)
+        .bind(&repo.clone_url_ssh)
+        .bind(&repo.description)
+        .bind(repo.is_private)
+        .bind(&repo.local_path)
+        .bind(&repo.status)
+        .bind(repo.last_pulled_at.map(|dt| dt.to_rfc3339()))
+        .bind(repo.updated_at.to_rfc3339())
+        .bind(&repo.id)
         .execute(&self.pool)
         .await?;
         Ok(())
     }
 
-    /// Delete a todo
-    pub async fn delete_todo(&self, id: &str) -> Result<()> {
-        sqlx::query("DELETE FROM todos WHERE id = ?")
+    /// Delete a repository
+    pub async fn delete_repository(&self, id: &str) -> Result<()> {
+        sqlx::query("DELETE FROM repositories WHERE id = ?")
             .bind(id)
             .execute(&self.pool)
             .await?;
         Ok(())
     }
 
-    /// Get todos by completion status
-    pub async fn get_todos_by_status(&self, completed: bool) -> Result<Vec<Todo>> {
-        let todos = sqlx::query_as::<_, Todo>(
-            "SELECT * FROM todos WHERE completed = ? ORDER BY created_at DESC",
-        )
-        .bind(completed)
-        .fetch_all(&self.pool)
-        .await?;
-        Ok(todos)
+    /// Clear all repositories (useful for refresh operations)
+    pub async fn clear_all_repositories(&self) -> Result<()> {
+        sqlx::query("DELETE FROM repositories")
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 }
