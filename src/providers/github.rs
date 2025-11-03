@@ -27,7 +27,7 @@ pub struct GitHubClient {
 }
 
 impl GitHubClient {
-    pub fn new(token: Option<String>) -> Self {
+    pub fn new(token: Option<String>) -> Result<Self> {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             reqwest::header::USER_AGENT,
@@ -39,19 +39,17 @@ impl GitHubClient {
         );
 
         if let Some(ref token) = token {
-            headers.insert(
-                reqwest::header::AUTHORIZATION,
-                reqwest::header::HeaderValue::from_str(&format!("Bearer {}", token))
-                    .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("")),
-            );
+            let header_value = reqwest::header::HeaderValue::from_str(&format!("Bearer {}", token))
+                .context("Invalid GitHub token format")?;
+            headers.insert(reqwest::header::AUTHORIZATION, header_value);
         }
 
         let client = reqwest::Client::builder()
             .default_headers(headers)
             .build()
-            .unwrap();
+            .context("Failed to create HTTP client")?;
 
-        Self { client, token }
+        Ok(Self { client, token })
     }
 
     async fn fetch_repos(&self, url: &str) -> Result<Vec<Repository>> {

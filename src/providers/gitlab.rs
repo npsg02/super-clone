@@ -28,7 +28,7 @@ pub struct GitLabClient {
 }
 
 impl GitLabClient {
-    pub fn new(token: Option<String>, base_url: Option<String>) -> Self {
+    pub fn new(token: Option<String>, base_url: Option<String>) -> Result<Self> {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             reqwest::header::USER_AGENT,
@@ -36,23 +36,24 @@ impl GitLabClient {
         );
 
         if let Some(ref token) = token {
+            let header_value = reqwest::header::HeaderValue::from_str(token)
+                .context("Invalid GitLab token format")?;
             headers.insert(
                 reqwest::header::HeaderName::from_static("private-token"),
-                reqwest::header::HeaderValue::from_str(token)
-                    .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("")),
+                header_value,
             );
         }
 
         let client = reqwest::Client::builder()
             .default_headers(headers)
             .build()
-            .unwrap();
+            .context("Failed to create HTTP client")?;
 
-        Self {
+        Ok(Self {
             client,
             token,
             base_url: base_url.unwrap_or_else(|| "https://gitlab.com".to_string()),
-        }
+        })
     }
 
     async fn fetch_projects(&self, url: &str) -> Result<Vec<Repository>> {

@@ -119,11 +119,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("🔍 Discovering repositories for user: {}", username);
             let repos = match provider_enum {
                 Provider::GitHub => {
-                    let client = GitHubClient::new(config.github_token);
+                    let client = GitHubClient::new(config.github_token)?;
                     client.discover_user_repos(&username).await?
                 }
                 Provider::GitLab => {
-                    let client = GitLabClient::new(config.gitlab_token, None);
+                    let client = GitLabClient::new(config.gitlab_token, None)?;
                     client.discover_user_repos(&username).await?
                 }
             };
@@ -173,11 +173,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
             let repos = match provider_enum {
                 Provider::GitHub => {
-                    let client = GitHubClient::new(config.github_token);
+                    let client = GitHubClient::new(config.github_token)?;
                     client.discover_org_repos(&org).await?
                 }
                 Provider::GitLab => {
-                    let client = GitLabClient::new(config.gitlab_token, None);
+                    let client = GitLabClient::new(config.gitlab_token, None)?;
                     client.discover_org_repos(&org).await?
                 }
             };

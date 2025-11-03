@@ -30,7 +30,16 @@ impl GitOperations {
 
         // Check if already exists
         if repo_path.exists() {
-            return Ok(repo_path.to_string_lossy().to_string());
+            // Check if it's a valid git repository
+            let git_dir = repo_path.join(".git");
+            if git_dir.exists() {
+                return Ok(repo_path.to_string_lossy().to_string());
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Directory exists but is not a git repository: {}",
+                    repo_path.display()
+                ));
+            }
         }
 
         // Ensure parent directory exists

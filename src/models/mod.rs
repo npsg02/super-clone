@@ -126,30 +126,6 @@ impl Repository {
     }
 }
 
-/// Configuration model
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Config {
-    pub github_token: Option<String>,
-    pub gitlab_token: Option<String>,
-    pub clone_base_path: String,
-    pub use_ssh: bool,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            github_token: None,
-            gitlab_token: None,
-            clone_base_path: dirs::home_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                .join("repositories")
-                .to_string_lossy()
-                .to_string(),
-            use_ssh: false,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
