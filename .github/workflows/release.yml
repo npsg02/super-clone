@@ -14,16 +14,16 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: template-rust
-            asset_name: template-rust-linux-x86_64
+            artifact_name: super-clone
+            asset_name: super-clone-linux-x86_64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: template-rust.exe
-            asset_name: template-rust-windows-x86_64.exe
+            artifact_name: super-clone.exe
+            asset_name: super-clone-windows-x86_64.exe
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: template-rust
-            asset_name: template-rust-macos-x86_64
+            artifact_name: super-clone
+            asset_name: super-clone-macos-x86_64
 
     steps:
     - uses: actions/checkout@v4
