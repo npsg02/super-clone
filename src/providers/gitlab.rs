@@ -20,6 +20,16 @@ struct GitLabNamespace {
     path: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct GitLabUser {
+    username: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitLabGroup {
+    path: String,
+}
+
 pub struct GitLabClient {
     client: reqwest::Client,
     #[allow(dead_code)]
@@ -54,6 +64,77 @@ impl GitLabClient {
             token,
             base_url: base_url.unwrap_or_else(|| "https://gitlab.com".to_string()),
         })
+    }
+
+    /// Get the authenticated user's username
+    pub async fn get_authenticated_user(&self) -> Result<String> {
+        let url = format!("{}/api/v4/user", self.base_url);
+        let response = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .context("Failed to fetch authenticated user from GitLab")?;
+
+        if !response.status().is_success() {
+            return Err(anyhow::anyhow!(
+                "GitLab API error: {} - {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            ));
+        }
+
+        let user: GitLabUser = response
+            .json()
+            .await
+            .context("Failed to parse GitLab user response")?;
+
+        Ok(user.username)
+    }
+
+    /// Get all groups the authenticated user has access to
+    pub async fn get_user_groups(&self) -> Result<Vec<String>> {
+        let mut all_groups = Vec::new();
+        let mut page = 1;
+        let per_page = 100;
+
+        loop {
+            let url = format!(
+                "{}/api/v4/groups?page={}&per_page={}",
+                self.base_url, page, per_page
+            );
+            let response = self
+                .client
+                .get(&url)
+                .send()
+                .await
+                .context("Failed to fetch groups from GitLab")?;
+
+            if !response.status().is_success() {
+                return Err(anyhow::anyhow!(
+                    "GitLab API error: {} - {}",
+                    response.status(),
+                    response.text().await.unwrap_or_default()
+                ));
+            }
+
+            let groups: Vec<GitLabGroup> = response
+                .json()
+                .await
+                .context("Failed to parse GitLab groups response")?;
+
+            if groups.is_empty() {
+                break;
+            }
+
+            for group in groups {
+                all_groups.push(group.path);
+            }
+
+            page += 1;
+        }
+
+        Ok(all_groups)
     }
 
     async fn fetch_projects(&self, url: &str) -> Result<Vec<Repository>> {
