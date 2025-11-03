@@ -8,6 +8,9 @@ Cargo.lock.bak
 *.sqlite
 *.sqlite3
 
+# Cloned repositories
+repositories/
+
 # Environment files
 .env
 .env.*

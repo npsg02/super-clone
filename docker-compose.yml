@@ -1,23 +1,28 @@
 services:
-  template-rust:
+  super-clone:
     build:
       context: .
       dockerfile: Dockerfile
-    image: template-rust:latest
-    container_name: template-rust-app
+    image: super-clone:latest
+    container_name: super-clone-app
     volumes:
       # Mount data directory for persistent storage
       - ./data:/app/data
+      # Mount repositories directory
+      - ./repositories:/app/repositories
     environment:
       # Override database path if needed
-      - DATABASE_URL=/app/data/todo.db
+      - DATABASE_URL=/app/data/repositories.db
+      # Set GitHub and GitLab tokens (optional)
+      # - GITHUB_TOKEN=your_token_here
+      # - GITLAB_TOKEN=your_token_here
     # Uncomment if you add a web server
     # ports:
     #   - "8080:8080"
     stdin_open: true
     tty: true
     # Override entrypoint for interactive TUI mode
-    entrypoint: ["template-rust"]
+    entrypoint: ["super-clone"]
     command: ["tui"]
     restart: unless-stopped
 
@@ -27,16 +32,19 @@ services:
       context: .
       dockerfile: Dockerfile
       target: builder
-    image: template-rust:dev
-    container_name: template-rust-dev
+    image: super-clone:dev
+    container_name: super-clone-dev
     volumes:
       - .:/app
       - cargo-cache:/usr/local/cargo/registry
       - target-cache:/app/target
     working_dir: /app
     environment:
-      - DATABASE_URL=/app/todo.db
+      - DATABASE_URL=/app/repositories.db
       - RUST_BACKTRACE=1
+      # Set GitHub and GitLab tokens (optional)
+      # - GITHUB_TOKEN=your_token_here
+      # - GITLAB_TOKEN=your_token_here
     stdin_open: true
     tty: true
     command: ["cargo", "run", "--", "tui"]

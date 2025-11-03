@@ -1,46 +1,60 @@
-use template_rust::models::Todo;
+use super_clone::models::{Provider, Repository};
 
 #[test]
-fn test_todo_creation() {
-    let todo = Todo::new(
-        "Test todo".to_string(),
-        Some("Test description".to_string()),
+fn test_repository_creation() {
+    let repo = Repository::new(
+        "test-repo".to_string(),
+        "owner/test-repo".to_string(),
+        "owner".to_string(),
+        Provider::GitHub,
+        "https://github.com/owner/test-repo.git".to_string(),
+        "git@github.com:owner/test-repo.git".to_string(),
+        Some("Test repository".to_string()),
+        false,
     );
 
-    assert_eq!(todo.title, "Test todo");
-    assert_eq!(todo.description, Some("Test description".to_string()));
-    assert!(!todo.completed);
-    assert!(!todo.id.is_empty());
+    assert_eq!(repo.name, "test-repo");
+    assert_eq!(repo.full_name, "owner/test-repo");
+    assert_eq!(repo.owner, "owner");
+    assert_eq!(repo.provider, "github");
+    assert!(!repo.is_private);
+    assert_eq!(repo.status, "not_cloned");
+    assert!(!repo.id.is_empty());
 }
 
 #[test]
-fn test_todo_completion() {
-    let mut todo = Todo::new("Test todo".to_string(), None);
-    let original_updated_at = todo.updated_at;
+fn test_provider_parsing() {
+    use std::str::FromStr;
+
+    assert!(Provider::from_str("github").is_ok());
+    assert!(Provider::from_str("GitHub").is_ok());
+    assert!(Provider::from_str("gitlab").is_ok());
+    assert!(Provider::from_str("GitLab").is_ok());
+    assert!(Provider::from_str("invalid").is_err());
+}
+
+#[test]
+fn test_repository_status_update() {
+    use super_clone::models::CloneStatus;
+
+    let mut repo = Repository::new(
+        "test-repo".to_string(),
+        "owner/test-repo".to_string(),
+        "owner".to_string(),
+        Provider::GitHub,
+        "https://github.com/owner/test-repo.git".to_string(),
+        "git@github.com:owner/test-repo.git".to_string(),
+        None,
+        false,
+    );
+
+    let original_updated_at = repo.updated_at;
 
     // Wait a moment to ensure timestamp change
     std::thread::sleep(std::time::Duration::from_millis(1));
 
-    todo.complete();
+    repo.update_status(CloneStatus::Cloned);
 
-    assert!(todo.completed);
-    assert!(todo.updated_at > original_updated_at);
-}
-
-#[test]
-fn test_todo_update() {
-    let mut todo = Todo::new("Original title".to_string(), None);
-    let original_updated_at = todo.updated_at;
-
-    // Wait a moment to ensure timestamp change
-    std::thread::sleep(std::time::Duration::from_millis(1));
-
-    todo.update(
-        Some("Updated title".to_string()),
-        Some("New description".to_string()),
-    );
-
-    assert_eq!(todo.title, "Updated title");
-    assert_eq!(todo.description, Some("New description".to_string()));
-    assert!(todo.updated_at > original_updated_at);
+    assert_eq!(repo.status, "cloned");
+    assert!(repo.updated_at > original_updated_at);
 }

@@ -5,6 +5,7 @@ FROM rust:1.89-slim AS builder
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a new empty project
@@ -28,6 +29,7 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl3 \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
@@ -36,7 +38,7 @@ RUN useradd -m -u 1000 appuser
 WORKDIR /app
 
 # Copy the binary from builder
-COPY --from=builder /app/target/release/template-rust /usr/local/bin/template-rust
+COPY --from=builder /app/target/release/super-clone /usr/local/bin/super-clone
 
 # Change ownership
 RUN chown -R appuser:appuser /app
@@ -45,7 +47,7 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 # Set default database path
-ENV DATABASE_URL=/app/data/todo.db
+ENV DATABASE_URL=/app/data/repositories.db
 
 # Create data directory
 RUN mkdir -p /app/data
@@ -54,5 +56,5 @@ RUN mkdir -p /app/data
 # EXPOSE 8080
 
 # Set the default command
-ENTRYPOINT ["template-rust"]
+ENTRYPOINT ["super-clone"]
 CMD ["--help"]
