@@ -62,6 +62,20 @@ enum Commands {
         org: String,
     },
 
+    /// Clone all repositories for the authenticated user (requires token)
+    CloneMine {
+        /// Provider (github or gitlab)
+        #[arg(short, long, default_value = "github")]
+        provider: String,
+    },
+
+    /// Clone all repositories from all organizations/groups the authenticated user has access to
+    CloneAllOrgs {
+        /// Provider (github or gitlab)
+        #[arg(short, long, default_value = "github")]
+        provider: String,
+    },
+
     /// List discovered repositories
     List {
         /// Filter by provider (github or gitlab)
@@ -198,6 +212,167 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Clone repositories
             let git_ops = GitOperations::new(PathBuf::from(&config.clone_base_path));
             for repo in &repos {
+                println!("⬇️  Cloning: {}", repo.full_name);
+                match git_ops.clone_repository(repo, config.use_ssh).await {
+                    Ok(path) => {
+                        let mut updated_repo = repo.clone();
+                        updated_repo.set_local_path(path.clone());
+                        updated_repo.update_status(CloneStatus::Cloned);
+                        db.update_repository(&updated_repo).await?;
+                        println!("   ✅ Cloned to: {}", path);
+                    }
+                    Err(e) => {
+                        let mut updated_repo = repo.clone();
+                        updated_repo.update_status(CloneStatus::Error);
+                        db.update_repository(&updated_repo).await?;
+                        eprintln!("   ❌ Failed: {}", e);
+                    }
+                }
+            }
+
+            println!("✨ Done!");
+        }
+        Some(Commands::CloneMine { provider }) => {
+            let provider_enum: Provider = provider.parse()?;
+
+            // Check for token first
+            match provider_enum {
+                Provider::GitHub => {
+                    if config.github_token.is_none() {
+                        return Err(anyhow::anyhow!(
+                            "GitHub token is required for this command. Set GITHUB_TOKEN env var or use --github-token flag."
+                        ).into());
+                    }
+                }
+                Provider::GitLab => {
+                    if config.gitlab_token.is_none() {
+                        return Err(anyhow::anyhow!(
+                            "GitLab token is required for this command. Set GITLAB_TOKEN env var or use --gitlab-token flag."
+                        ).into());
+                    }
+                }
+            }
+
+            // Get authenticated user and discover repos
+            println!("🔍 Discovering repositories for authenticated user...");
+            let repos = match provider_enum {
+                Provider::GitHub => {
+                    let client = GitHubClient::new(config.github_token)?;
+                    let username = client.get_authenticated_user().await?;
+                    println!("   Authenticated as: {}", username);
+                    client.discover_user_repos(&username).await?
+                }
+                Provider::GitLab => {
+                    let client = GitLabClient::new(config.gitlab_token, None)?;
+                    let username = client.get_authenticated_user().await?;
+                    println!("   Authenticated as: {}", username);
+                    client.discover_user_repos(&username).await?
+                }
+            };
+
+            println!("📦 Found {} repositories", repos.len());
+
+            // Save to database
+            for repo in &repos {
+                if db
+                    .get_repository_by_full_name(&repo.full_name)
+                    .await?
+                    .is_none()
+                {
+                    db.create_repository(repo).await?;
+                }
+            }
+
+            // Clone repositories
+            let git_ops = GitOperations::new(PathBuf::from(&config.clone_base_path));
+            for repo in &repos {
+                println!("⬇️  Cloning: {}", repo.full_name);
+                match git_ops.clone_repository(repo, config.use_ssh).await {
+                    Ok(path) => {
+                        let mut updated_repo = repo.clone();
+                        updated_repo.set_local_path(path.clone());
+                        updated_repo.update_status(CloneStatus::Cloned);
+                        db.update_repository(&updated_repo).await?;
+                        println!("   ✅ Cloned to: {}", path);
+                    }
+                    Err(e) => {
+                        let mut updated_repo = repo.clone();
+                        updated_repo.update_status(CloneStatus::Error);
+                        db.update_repository(&updated_repo).await?;
+                        eprintln!("   ❌ Failed: {}", e);
+                    }
+                }
+            }
+
+            println!("✨ Done!");
+        }
+        Some(Commands::CloneAllOrgs { provider }) => {
+            let provider_enum: Provider = provider.parse()?;
+
+            // Check for token first
+            match provider_enum {
+                Provider::GitHub => {
+                    if config.github_token.is_none() {
+                        return Err(anyhow::anyhow!(
+                            "GitHub token is required for this command. Set GITHUB_TOKEN env var or use --github-token flag."
+                        ).into());
+                    }
+                }
+                Provider::GitLab => {
+                    if config.gitlab_token.is_none() {
+                        return Err(anyhow::anyhow!(
+                            "GitLab token is required for this command. Set GITLAB_TOKEN env var or use --gitlab-token flag."
+                        ).into());
+                    }
+                }
+            }
+
+            println!("🔍 Discovering organizations/groups...");
+            
+            let mut all_repos = Vec::new();
+            match provider_enum {
+                Provider::GitHub => {
+                    let client = GitHubClient::new(config.github_token.clone())?;
+                    let orgs = client.get_user_organizations().await?;
+                    println!("   Found {} organizations with access", orgs.len());
+                    
+                    for org in orgs {
+                        println!("   Discovering repositories for: {}", org);
+                        let repos = client.discover_org_repos(&org).await?;
+                        println!("   📦 Found {} repositories in {}", repos.len(), org);
+                        all_repos.extend(repos);
+                    }
+                }
+                Provider::GitLab => {
+                    let client = GitLabClient::new(config.gitlab_token.clone(), None)?;
+                    let orgs = client.get_user_groups().await?;
+                    println!("   Found {} groups with access", orgs.len());
+                    
+                    for org in orgs {
+                        println!("   Discovering repositories for: {}", org);
+                        let repos = client.discover_org_repos(&org).await?;
+                        println!("   📦 Found {} repositories in {}", repos.len(), org);
+                        all_repos.extend(repos);
+                    }
+                }
+            }
+
+            println!("📦 Total: {} repositories across all organizations/groups", all_repos.len());
+
+            // Save to database
+            for repo in &all_repos {
+                if db
+                    .get_repository_by_full_name(&repo.full_name)
+                    .await?
+                    .is_none()
+                {
+                    db.create_repository(repo).await?;
+                }
+            }
+
+            // Clone repositories
+            let git_ops = GitOperations::new(PathBuf::from(&config.clone_base_path));
+            for repo in &all_repos {
                 println!("⬇️  Cloning: {}", repo.full_name);
                 match git_ops.clone_repository(repo, config.use_ssh).await {
                     Ok(path) => {

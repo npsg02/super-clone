@@ -58,3 +58,33 @@ fn test_repository_status_update() {
     assert_eq!(repo.status, "cloned");
     assert!(repo.updated_at > original_updated_at);
 }
+
+#[test]
+fn test_github_client_creation() {
+    use super_clone::providers::github::GitHubClient;
+
+    // Test without token
+    let client = GitHubClient::new(None);
+    assert!(client.is_ok());
+
+    // Test with token
+    let client = GitHubClient::new(Some("test_token".to_string()));
+    assert!(client.is_ok());
+}
+
+#[test]
+fn test_gitlab_client_creation() {
+    use super_clone::providers::gitlab::GitLabClient;
+
+    // Test without token
+    let client = GitLabClient::new(None, None);
+    assert!(client.is_ok());
+
+    // Test with token
+    let client = GitLabClient::new(Some("test_token".to_string()), None);
+    assert!(client.is_ok());
+
+    // Test with custom base URL
+    let client = GitLabClient::new(None, Some("https://gitlab.example.com".to_string()));
+    assert!(client.is_ok());
+}

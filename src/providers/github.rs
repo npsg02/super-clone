@@ -20,6 +20,16 @@ struct GitHubOwner {
     login: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct GitHubUser {
+    login: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubOrg {
+    login: String,
+}
+
 pub struct GitHubClient {
     client: reqwest::Client,
     #[allow(dead_code)]
@@ -50,6 +60,77 @@ impl GitHubClient {
             .context("Failed to create HTTP client")?;
 
         Ok(Self { client, token })
+    }
+
+    /// Get the authenticated user's username
+    pub async fn get_authenticated_user(&self) -> Result<String> {
+        let url = "https://api.github.com/user";
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .context("Failed to fetch authenticated user from GitHub")?;
+
+        if !response.status().is_success() {
+            return Err(anyhow::anyhow!(
+                "GitHub API error: {} - {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            ));
+        }
+
+        let user: GitHubUser = response
+            .json()
+            .await
+            .context("Failed to parse GitHub user response")?;
+
+        Ok(user.login)
+    }
+
+    /// Get all organizations the authenticated user has access to
+    pub async fn get_user_organizations(&self) -> Result<Vec<String>> {
+        let mut all_orgs = Vec::new();
+        let mut page = 1;
+        let per_page = 100;
+
+        loop {
+            let url = format!(
+                "https://api.github.com/user/orgs?page={}&per_page={}",
+                page, per_page
+            );
+            let response = self
+                .client
+                .get(&url)
+                .send()
+                .await
+                .context("Failed to fetch organizations from GitHub")?;
+
+            if !response.status().is_success() {
+                return Err(anyhow::anyhow!(
+                    "GitHub API error: {} - {}",
+                    response.status(),
+                    response.text().await.unwrap_or_default()
+                ));
+            }
+
+            let orgs: Vec<GitHubOrg> = response
+                .json()
+                .await
+                .context("Failed to parse GitHub organizations response")?;
+
+            if orgs.is_empty() {
+                break;
+            }
+
+            for org in orgs {
+                all_orgs.push(org.login);
+            }
+
+            page += 1;
+        }
+
+        Ok(all_orgs)
     }
 
     async fn fetch_repos(&self, url: &str) -> Result<Vec<Repository>> {
