@@ -84,6 +84,12 @@ Click the "Code" button on GitHub and select "Create codespace on main" - everyt
 # Clone all repositories from a GitLab group
 ./super-clone clone-org --provider gitlab group-name
 
+# Clone all repositories for the authenticated user (requires token)
+./super-clone clone-mine --provider github
+
+# Clone all repositories from all organizations/groups the authenticated user has access to
+./super-clone clone-all-orgs --provider github
+
 # List all discovered repositories
 ./super-clone list
 
@@ -105,16 +111,25 @@ Click the "Code" button on GitHub and select "Create codespace on main" - everyt
 
 ### Using Access Tokens
 
-For private repositories, set environment variables or use command-line flags:
+For private repositories and auto-discovery of your repositories, set environment variables or use command-line flags:
 
 ```bash
 # Using environment variables
 export GITHUB_TOKEN=your_github_token
 export GITLAB_TOKEN=your_gitlab_token
+
+# Clone all repositories from a specific user
 ./super-clone clone-user --provider github username
+
+# Clone all YOUR repositories (auto-detects username from token)
+./super-clone clone-mine --provider github
+
+# Clone all repositories from ALL organizations/groups you have access to
+./super-clone clone-all-orgs --provider github
 
 # Using command-line flags
 ./super-clone --github-token your_token clone-user --provider github username
+./super-clone --github-token your_token clone-mine --provider github
 ```
 
 ### SSH vs HTTPS
