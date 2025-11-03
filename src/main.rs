@@ -235,24 +235,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(Commands::CloneMine { provider }) => {
             let provider_enum: Provider = provider.parse()?;
 
-            // Get authenticated user
-            let username = match provider_enum {
+            // Check for token first
+            match provider_enum {
                 Provider::GitHub => {
-                    let client = GitHubClient::new(config.github_token.clone())?;
                     if config.github_token.is_none() {
                         return Err(anyhow::anyhow!(
                             "GitHub token is required for this command. Set GITHUB_TOKEN env var or use --github-token flag."
                         ).into());
                     }
-                    client.get_authenticated_user().await?
                 }
                 Provider::GitLab => {
-                    let client = GitLabClient::new(config.gitlab_token.clone(), None)?;
                     if config.gitlab_token.is_none() {
                         return Err(anyhow::anyhow!(
                             "GitLab token is required for this command. Set GITLAB_TOKEN env var or use --gitlab-token flag."
                         ).into());
                     }
+                }
+            }
+
+            // Get authenticated user
+            let username = match provider_enum {
+                Provider::GitHub => {
+                    let client = GitHubClient::new(config.github_token.clone())?;
+                    client.get_authenticated_user().await?
+                }
+                Provider::GitLab => {
+                    let client = GitLabClient::new(config.gitlab_token.clone(), None)?;
                     client.get_authenticated_user().await?
                 }
             };
@@ -308,45 +316,52 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(Commands::CloneAllOrgs { provider }) => {
             let provider_enum: Provider = provider.parse()?;
 
-            // Get all organizations/groups for authenticated user
-            let orgs = match provider_enum {
+            // Check for token first
+            match provider_enum {
                 Provider::GitHub => {
-                    let client = GitHubClient::new(config.github_token.clone())?;
                     if config.github_token.is_none() {
                         return Err(anyhow::anyhow!(
                             "GitHub token is required for this command. Set GITHUB_TOKEN env var or use --github-token flag."
                         ).into());
                     }
-                    client.get_user_organizations().await?
                 }
                 Provider::GitLab => {
-                    let client = GitLabClient::new(config.gitlab_token.clone(), None)?;
                     if config.gitlab_token.is_none() {
                         return Err(anyhow::anyhow!(
                             "GitLab token is required for this command. Set GITLAB_TOKEN env var or use --gitlab-token flag."
                         ).into());
                     }
-                    client.get_user_groups().await?
                 }
-            };
+            }
 
-            println!("🔍 Found {} organizations/groups with access", orgs.len());
-
+            println!("🔍 Discovering organizations/groups...");
+            
             let mut all_repos = Vec::new();
-            for org in orgs {
-                println!("   Discovering repositories for: {}", org);
-                let repos = match provider_enum {
-                    Provider::GitHub => {
-                        let client = GitHubClient::new(config.github_token.clone())?;
-                        client.discover_org_repos(&org).await?
+            match provider_enum {
+                Provider::GitHub => {
+                    let client = GitHubClient::new(config.github_token.clone())?;
+                    let orgs = client.get_user_organizations().await?;
+                    println!("   Found {} organizations with access", orgs.len());
+                    
+                    for org in orgs {
+                        println!("   Discovering repositories for: {}", org);
+                        let repos = client.discover_org_repos(&org).await?;
+                        println!("   📦 Found {} repositories in {}", repos.len(), org);
+                        all_repos.extend(repos);
                     }
-                    Provider::GitLab => {
-                        let client = GitLabClient::new(config.gitlab_token.clone(), None)?;
-                        client.discover_org_repos(&org).await?
+                }
+                Provider::GitLab => {
+                    let client = GitLabClient::new(config.gitlab_token.clone(), None)?;
+                    let orgs = client.get_user_groups().await?;
+                    println!("   Found {} groups with access", orgs.len());
+                    
+                    for org in orgs {
+                        println!("   Discovering repositories for: {}", org);
+                        let repos = client.discover_org_repos(&org).await?;
+                        println!("   📦 Found {} repositories in {}", repos.len(), org);
+                        all_repos.extend(repos);
                     }
-                };
-                println!("   📦 Found {} repositories in {}", repos.len(), org);
-                all_repos.extend(repos);
+                }
             }
 
             println!("📦 Total: {} repositories across all organizations/groups", all_repos.len());
