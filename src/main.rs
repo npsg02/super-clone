@@ -115,9 +115,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.gitlab_token = cli
         .gitlab_token
         .or_else(|| std::env::var("GITLAB_TOKEN").ok());
-    config.gitlab_base_url = cli
-        .gitlab_url
-        .or_else(|| std::env::var("GITLAB_URL").ok());
+    config.gitlab_base_url = cli.gitlab_url.or_else(|| std::env::var("GITLAB_URL").ok());
     if let Some(path) = cli.clone_path {
         config.clone_base_path = path;
     }
@@ -144,7 +142,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     client.discover_user_repos(&username).await?
                 }
                 Provider::GitLab => {
-                    let client = GitLabClient::new(config.gitlab_token.clone(), config.gitlab_base_url.clone())?;
+                    let client = GitLabClient::new(
+                        config.gitlab_token.clone(),
+                        config.gitlab_base_url.clone(),
+                    )?;
                     client.discover_user_repos(&username).await?
                 }
             };
@@ -202,7 +203,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     client.discover_org_repos(&org).await?
                 }
                 Provider::GitLab => {
-                    let client = GitLabClient::new(config.gitlab_token.clone(), config.gitlab_base_url.clone())?;
+                    let client = GitLabClient::new(
+                        config.gitlab_token.clone(),
+                        config.gitlab_base_url.clone(),
+                    )?;
                     client.discover_org_repos(&org).await?
                 }
             };
@@ -343,14 +347,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             println!("🔍 Discovering organizations/groups...");
-            
+
             let mut all_repos = Vec::new();
             match provider_enum {
                 Provider::GitHub => {
                     let client = GitHubClient::new(config.github_token.clone())?;
                     let orgs = client.get_user_organizations().await?;
                     println!("   Found {} organizations with access", orgs.len());
-                    
+
                     for org in orgs {
                         println!("   Discovering repositories for: {}", org);
                         let repos = client.discover_org_repos(&org).await?;
@@ -359,10 +363,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 Provider::GitLab => {
-                    let client = GitLabClient::new(config.gitlab_token.clone(), config.gitlab_base_url.clone())?;
+                    let client = GitLabClient::new(
+                        config.gitlab_token.clone(),
+                        config.gitlab_base_url.clone(),
+                    )?;
                     let orgs = client.get_user_groups().await?;
                     println!("   Found {} groups with access", orgs.len());
-                    
+
                     for org in orgs {
                         println!("   Discovering repositories for: {}", org);
                         let repos = client.discover_org_repos(&org).await?;
@@ -372,7 +379,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            println!("📦 Total: {} repositories across all organizations/groups", all_repos.len());
+            println!(
+                "📦 Total: {} repositories across all organizations/groups",
+                all_repos.len()
+            );
 
             // Save to database
             for repo in &all_repos {
