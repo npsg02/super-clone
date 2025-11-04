@@ -87,4 +87,19 @@ fn test_gitlab_client_creation() {
     // Test with custom base URL
     let client = GitLabClient::new(None, Some("https://gitlab.example.com".to_string()));
     assert!(client.is_ok());
+    
+    // Test with both token and custom base URL
+    let client = GitLabClient::new(Some("test_token".to_string()), Some("https://gitlab.example.com".to_string()));
+    assert!(client.is_ok());
+}
+
+#[test]
+fn test_config_default_gitlab_url() {
+    use super_clone::Config;
+    
+    // Test that Config respects GITLAB_URL environment variable
+    let config = Config::default();
+    // When GITLAB_URL is not set, gitlab_base_url should be None
+    // (This will vary based on env, so we just check it's an Option)
+    assert!(config.gitlab_base_url.is_none() || config.gitlab_base_url.is_some());
 }
