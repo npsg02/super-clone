@@ -132,6 +132,23 @@ export GITLAB_TOKEN=your_gitlab_token
 ./super-clone --github-token your_token clone-mine --provider github
 ```
 
+### GitLab Self-Hosted
+
+For GitLab self-hosted instances, specify the base URL using an environment variable or command-line flag:
+
+```bash
+# Using environment variable
+export GITLAB_URL=https://gitlab.example.com
+export GITLAB_TOKEN=your_gitlab_token
+./super-clone clone-user --provider gitlab username
+
+# Using command-line flag
+./super-clone --gitlab-url https://gitlab.example.com --gitlab-token your_token clone-user --provider gitlab username
+
+# Clone all repositories from a GitLab group on self-hosted instance
+./super-clone --gitlab-url https://gitlab.example.com clone-org --provider gitlab group-name
+```
+
 ### SSH vs HTTPS
 
 By default, super-clone uses HTTPS for cloning. To use SSH:
@@ -253,6 +270,7 @@ Super-clone stores configuration in the database and uses environment variables 
 
 - `GITHUB_TOKEN`: GitHub personal access token for private repositories
 - `GITLAB_TOKEN`: GitLab personal access token for private repositories
+- `GITLAB_URL`: GitLab base URL for self-hosted instances (e.g., `https://gitlab.example.com`)
 
 Default clone path: `~/repositories`
 

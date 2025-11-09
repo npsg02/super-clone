@@ -22,6 +22,8 @@ pub struct Config {
     pub github_token: Option<String>,
     /// GitLab access token
     pub gitlab_token: Option<String>,
+    /// GitLab base URL (for self-hosted instances)
+    pub gitlab_base_url: Option<String>,
     /// Base path for cloning repositories
     pub clone_base_path: String,
     /// Use SSH for cloning (default: HTTPS)
@@ -39,6 +41,7 @@ impl Default for Config {
                 .to_string(),
             github_token: std::env::var("GITHUB_TOKEN").ok(),
             gitlab_token: std::env::var("GITLAB_TOKEN").ok(),
+            gitlab_base_url: std::env::var("GITLAB_URL").ok(),
             clone_base_path: dirs::home_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                 .join("repositories")
